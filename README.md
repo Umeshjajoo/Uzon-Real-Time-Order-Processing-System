@@ -1,6 +1,6 @@
 ### **Use Case: Real-Time Order Processing System**
 
-In this use case, we will design a **MuleSoft API** to integrate with **Apache Kafka** for building a **Real-Time Order Processing System** for an e-commerce platform. The API will handle order ingestion, validation, processing, and updates in real time.
+In this use case, I have designed a **MuleSoft API** to integrate with **Apache Kafka** for building a **Real-Time Order Processing System** for an e-commerce platform. The API will handle order ingestion, validation, processing, and updates in real time.
 
 ---
 

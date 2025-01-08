@@ -124,11 +124,112 @@ This documentation outlines the implementation of a **Uzon Real-Time Order Proce
 
 ---
 
-## Future Enhancements
-1. **Event-Driven Architecture**:
-   - Extend the system to support customer notifications and loyalty programs.
-2. **Analytics**:
-   - Integrate a data pipeline for real-time analytics on order processing and inventory trends.
+## **Database Schema**
+
+### **Tables**
+
+1. **`Customers`**
+   - Stores customer details.
+   ```
+   Columns: CustomerId, CustomerName, Email, Phone
+   ```
+
+2. **`Orders`**
+   - Stores order information.
+   ```
+   Columns: OrderId, CustomerId, OrderDate, TotalAmount, PaymentStatus, OrderStatus, ShippingAddressId
+   ```
+
+3. **`OrderItems`**
+   - Stores details of items in each order.
+   ```
+   Columns: OrderId, ProductId, ProductName, Quantity, Price
+   ```
+
+4. **`ShippingAddresses`**
+   - Stores shipping addresses associated with orders.
+   ```
+   Columns: AddressId, Street, City, State, ZipCode, Country
+   ```
+
+5. **`ProductInventory`**
+   - Maintains inventory of products.
+   ```
+   Columns: ProductID,	ProductName,	Description,	QuantityInStock,	ReorderLevel,	PricePerUnit,	LastRestockDate,	CreatedAt,	UpdatedAt,	IsActive
+   ```
+
+6. **`OrderStatus`**
+   - Tracks the status of orders.
+   ```
+   Columns: OrderId, Status, Timestamp
+   ```
 
 ---
+
+## **JSON Schemas**
+
+### **Order Request JSON**
+```json
+{
+  "orderId": "12345",
+  "customerId": "67890",
+  "customerName": "John Doe",
+  "customerEmail": "john.doe@example.com",
+  "customerPhone": "+1-555-1234",
+  "orderDate": "2024-01-15T10:30:00Z",
+  "items": [
+    {
+      "productId": "P001",
+      "productName": "Wireless Mouse",
+      "quantity": 2,
+      "price": 25.99
+    },
+    {
+      "productId": "P002",
+      "productName": "Keyboard",
+      "quantity": 1,
+      "price": 49.99
+    }
+  ],
+  "totalAmount": 101.97,
+  "paymentStatus": "Paid",
+  "orderStatus": "New",
+  "shippingAddress": {
+    "street": "123 Elm Street",
+    "city": "San Francisco",
+    "state": "CA",
+    "zipCode": "94101",
+    "country": "USA"
+  }
+}
+```
+
+### **Order Status JSON**
+```json
+{
+  "orderId": "12345",
+  "currentStatus": "Shipped",
+  "statusDetails": [
+    {
+      "status": "Packed",
+      "timeStamp": "02:00:00 PM, January 15, 2024"
+    },
+    {
+      "status": "Shipped",
+      "timeStamp": "03:00:00 PM, January 15, 2024"
+    }
+  ]
+}
+```
+
+### **Inventory Update JSON**
+```json
+{
+  "productId": "P001",
+  "productName": "Wireless Mouse",
+  "quantityDeducted": 2,
+  "remainingStock": 98,
+  "updateTimestamp": "2024-01-15T10:45:00Z",
+  "orderId": "12345"
+}
 

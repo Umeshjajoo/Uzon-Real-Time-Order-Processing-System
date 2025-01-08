@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:kafka="http://www.mulesoft.org/schema/mule/kafka"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/kafka/current/mule-kafka.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	
+	<flow name="order_statusFlow" doc:id="318f2fc1-91c2-4eeb-84b5-755bd669103f" >
+		<kafka:message-listener doc:name="Message listener" doc:id="5100cc8d-b453-4790-bffc-74d297dcff5f" config-ref="Apache_Kafka_OrderStatus_Consumer_configuration">
+			<redelivery-policy />
+		</kafka:message-listener>
+		<ee:transform doc:name="Transform Message" doc:id="fc1c4f8d-71d9-4327-8d76-82cfb036a9e7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload, "application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:insert doc:name="Insert" doc:id="6c7b4f48-3052-4db6-9e81-ac79b8f8e553" config-ref="Database_Aiven_Config">
+			<db:sql ><![CDATA[INSERT INTO OrderStatus (OrderId, Status, Timestamp)
+VALUES (:OrderId, :Status, :Timestamp)
+ON DUPLICATE KEY UPDATE 
+    Timestamp = :Timestamp;
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+  "OrderId": payload.orderId,
+  "Status": payload.currentStatus,
+  "Timestamp":payload.timeStamp
+}]]]></db:input-parameters>
+		</db:insert>
+		<logger level="INFO" doc:name="Logger" doc:id="e0dc5278-60e1-47ae-84ba-2c69e0394552" message="Order Status Updated"/>
+	</flow>
+	<flow name="order_statusFlow1" doc:id="16ed21ed-9a5c-4ab2-9c27-74bf57f0be54" >
+		<db:select doc:name="Select" doc:id="1b9dfc27-9de9-4761-b690-9a0e451eb1a0" config-ref="Database_Aiven_Config">
+			<db:sql ><![CDATA[SELECT * FROM OrderStatus WHERE OrderId = :Id;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"Id": attributes.uriParams.'id'}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="ee3bd7a7-e364-4e5f-ab6f-046784997827" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload orderBy ((item, index) -> item.Timestamp )]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="d2e48570-6930-4095-b3f1-dc37ad61f522" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "OrderId": payload.OrderId[0],
+    "currentStatus": payload.Status[-1],
+   "statusDetails" : 
+        payload map ((item, index) -> {
+            "status" : item.Status,
+            "timeStamp": item.Timestamp as DateTime as String {format: "KK:mm:ss a, MMMM dd, uuuu"}
+        })
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="b8fdd454-1b0f-4879-b983-299944bae6c5" message="#[payload]"/>
+	</flow>
+</mule>

@@ -1,0 +1,18 @@
+%dw 2.0
+
+type auto_ae32cea4_866a_4345_bfef_dfc7e9c8460c_Input_Attributes = {|
+  consumerCommitKey?: String, 
+  creationTimestamp?: DateTime {"typeId": "java.time.ZonedDateTime"}, 
+  headers?: { _?: Binary }, 
+  key?: Binary, 
+  leaderEpoch?: Number, 
+  logAppendTimestamp?: DateTime {"typeId": "java.time.ZonedDateTime"}, 
+  offset?: Number, 
+  partition?: Number, 
+  serializedKeySize?: Number, 
+  serializedValueSize?: Number, 
+  topic?: String
+|} {"typeAlias": "KafkaRecordAttributes",
+"class": "com.mulesoft.connectors.kafka.api.KafkaRecordAttributes",
+"typeId": "com.mulesoft.connectors.kafka.api.KafkaRecordAttributes"}
+

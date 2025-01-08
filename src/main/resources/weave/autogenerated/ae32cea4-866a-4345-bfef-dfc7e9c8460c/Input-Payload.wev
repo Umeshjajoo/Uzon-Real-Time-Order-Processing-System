@@ -1,0 +1,8 @@
+%dw 2.0
+
+type auto_ae32cea4_866a_4345_bfef_dfc7e9c8460c_Input_Payload = {|
+  orderId: Any, 
+  currentStatus: String, 
+  statusDetails: Array<{|    status: String,     timestamp: DateTime {"format": "yyyy-MM-d HH:MM:ss"}  |}>
+|}
+

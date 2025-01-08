@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:kafka="http://www.mulesoft.org/schema/mule/kafka" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/kafka/current/mule-kafka.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<kafka:consumer-config name="Apache_Kafka_OrderStatus_Consumer_configuration" doc:name="Apache Kafka Consumer configuration" doc:id="4494af3c-e774-489e-bc35-6b86d9b960f4" >
+		<kafka:consumer-sasl-scram-connection username="avnadmin" password="${secure::encrypted.kafka}" encryptionType="SCRAM_SHA_256" tlsContext="Aiven_TLS_Context" >
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="kafka-81f664f-umeshjajoo76-5826.f.aivencloud.com:15573" />
+			</kafka:bootstrap-servers>
+			<kafka:topic-patterns >
+				<kafka:topic-pattern value="order-status" />
+			</kafka:topic-patterns>
+		</kafka:consumer-sasl-scram-connection>
+	
+</kafka:consumer-config>
+
+	<kafka:consumer-config name="Apache_Kafka_shipping_Consumer_configuration1" doc:name="Apache Kafka Consumer configuration" doc:id="90d17c2d-2b55-4c4d-aa24-79bb954cf233" >
+		<kafka:consumer-sasl-scram-connection username="avnadmin" password="${secure::encrypted.kafka}" encryptionType="SCRAM_SHA_256" tlsContext="Aiven_TLS_Context" >
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="kafka-81f664f-umeshjajoo76-5826.f.aivencloud.com:15573" />
+			</kafka:bootstrap-servers>
+			<kafka:topic-patterns >
+				<kafka:topic-pattern value="shipping-updates" />
+			</kafka:topic-patterns>
+		</kafka:consumer-sasl-scram-connection>
+		
+	</kafka:consumer-config>
+	<kafka:consumer-config name="Apache_Kafka_inventory_Consumer_configuration1" doc:name="Apache Kafka Consumer configuration" doc:id="944bdedb-b8ff-472e-ad11-081f42d56264" >
+		<kafka:consumer-sasl-scram-connection username="avnadmin" password="${secure::encrypted.kafka}" encryptionType="SCRAM_SHA_256" tlsContext="Aiven_TLS_Context" >
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="kafka-81f664f-umeshjajoo76-5826.f.aivencloud.com:15573" />
+			</kafka:bootstrap-servers>
+			<kafka:topic-patterns >
+				<kafka:topic-pattern value="inventory-updates" />
+			</kafka:topic-patterns>
+		</kafka:consumer-sasl-scram-connection>
+	
+</kafka:consumer-config>
+	<kafka:consumer-config name="Apache_Kafka_Consumer_Order_In_configuration" doc:name="Apache Kafka Consumer configuration" doc:id="4941c098-1a2d-478b-8e5d-62ea344cd9c9" ackMode="MANUAL">
+		<kafka:consumer-sasl-scram-connection username="avnadmin" password="${secure::encrypted.kafka}" encryptionType="SCRAM_SHA_256" tlsContext="Aiven_TLS_Context" >
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="kafka-81f664f-umeshjajoo76-5826.f.aivencloud.com:15573" />
+			</kafka:bootstrap-servers>
+			<kafka:topic-patterns >
+				<kafka:topic-pattern value="orders-in" />
+			</kafka:topic-patterns>
+		</kafka:consumer-sasl-scram-connection>
+	</kafka:consumer-config>
+	<kafka:consumer-config name="Apache_Kafka_Consumer_Order_validated_configuration1" doc:name="Apache Kafka Consumer configuration" doc:id="50d05d3e-2172-4d10-8784-fa3d0e195967" >
+		<kafka:consumer-sasl-scram-connection username="avnadmin" password="${secure::encrypted.kafka}" encryptionType="SCRAM_SHA_256" tlsContext="Aiven_TLS_Context" >
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="kafka-81f664f-umeshjajoo76-5826.f.aivencloud.com:15573" />
+			</kafka:bootstrap-servers>
+			<kafka:topic-patterns >
+				<kafka:topic-pattern value="orders-validated" />
+			</kafka:topic-patterns>
+		</kafka:consumer-sasl-scram-connection>
+	
+</kafka:consumer-config>
+	<configuration doc:name="Configuration" doc:id="afe92f08-9d70-4268-8c37-294b6516478d" defaultErrorHandler-ref="Global_Error_Handler" />
+	<kafka:producer-config name="Apache_Kafka_Aiven_Producer_configuration" doc:name="Apache Kafka Producer configuration" doc:id="72cdae7d-fe87-4bd9-80d0-4c2af886be01" >
+		<kafka:producer-sasl-scram-connection username="avnadmin" password="${secure::encrypted.kafka}" encryptionType="SCRAM_SHA_256" tlsContext="Aiven_TLS_Context" producerAck="LEADER_ONLY">
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="kafka-81f664f-umeshjajoo76-5826.f.aivencloud.com:15573" />
+			</kafka:bootstrap-servers>
+		</kafka:producer-sasl-scram-connection>
+	</kafka:producer-config>
+	<tls:context name="Aiven_TLS_Context" doc:name="TLS Context" doc:id="dae3bcda-2076-482a-bb0a-9cb853cda0ad" >
+		<tls:trust-store path="Certs/client.truststore.jks" password="AivenAdmin" type="jks" insecure="true"/>
+	</tls:context>
+	<db:config name="Database_Aiven_Config" doc:name="Database Config" doc:id="6b29541e-83de-4ef2-b524-f8062eaa3057" >
+		<db:my-sql-connection host="mysql-db5fb18-umeshjajoo76-5826.b.aivencloud.com" port="15560" user="avnadmin" password="${secure::encrypted.db}" database="uzon_master_database	" />
+	</db:config>
+	<api-gateway:autodiscovery apiId="20141921" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="381ad78d-e87b-4aef-a882-5f97d3635d45" flowRef="uzon-order-processing-system-main" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="40ec623b-d504-468c-b758-67142ecda6fa" file="prod.properties" key="${token}" />
+</mule>

@@ -1,0 +1,8 @@
+{
+  "sampleData": {
+    "70b931b6-3d17-4f93-be9d-a3a2f8c89256": {
+      "vars-validationStatus": "sample_data/defaultnulltype.json",
+      "payload": "sample_data/list_java.dwl"
+    }
+  }
+}

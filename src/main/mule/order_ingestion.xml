@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:kafka="http://www.mulesoft.org/schema/mule/kafka" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/kafka/current/mule-kafka.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+	<flow name="order_ingestionFlow" doc:id="03404578-f7be-4ad1-a9c6-f1bb20f345d5" >
+		<ee:transform doc:name="Transform Message" doc:id="60e813f6-d03a-4ee8-ab2f-c1f6311cfa44" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	orderId: payload.orderId,
+	customerId: payload.customerId,
+	customerName: payload.customerName,
+	customerEmail: payload.customerEmail,
+	customerPhone: payload.customerPhone,
+	orderDate: payload.orderDate,
+	items: payload.items map ( item , indexOfItem ) -> {
+		productId: item.productId,
+		productName: item.productName,
+		quantity: item.quantity,
+		price: item.price
+	},
+	totalAmount: payload.totalAmount,
+	paymentStatus: payload.paymentStatus,
+	orderStatus: payload.orderStatus,
+	shippingAddress: {
+		street: payload.shippingAddress.street,
+		city: payload.shippingAddress.city,
+		state: payload.shippingAddress.state,
+		zipCode: payload.shippingAddress.zipCode,
+		country: payload.shippingAddress.country
+	}
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="19360b3e-9e4e-4713-9265-5d9f8a92d133" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="orderId" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.orderId]]></ee:set-variable>
+				<ee:set-variable variableName="totalAmount" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.totalAmount]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Flow Reference" doc:id="d6dc5a22-9fba-43ae-9623-62b0cb7fa6fd" name="order_insert_db_Sub_Flow" target="dbInsert" />
+		<kafka:publish doc:name="Publish" doc:id="3712cba1-32a7-4e77-847f-0be00af338a4" config-ref="Apache_Kafka_Aiven_Producer_configuration" topic="orders-in" key="#[payload.orderId]" />
+		<ee:transform doc:name="Transform Message" doc:id="26364e9a-fe78-4c70-bee1-49e1c137cce5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  orderId: vars.orderId ,
+  message: "Your order has been successfully placed!",
+  orderDate: now() as String,
+  totalAmount: vars.totalAmount,
+  paymentStatus: "Paid",
+  orderStatus: "Pending Approval",
+  customerSupport: {
+    email: "support@uzon.com",
+    phone: "+1-800-555-1234",
+    chatLink: "https://uzon.com/support/chat"
+  },
+  tracking: {
+    trackingLink: "http://localhost:8081/api/api/orders/" ++ vars.orderId,
+    expectedUpdates: "You will receive updates via email and SMS."
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler ref="Global_Error_Handler" />
+	</flow>
+	<flow name="order_insert_db_Sub_Flow" doc:id="3cf9672b-2c28-419f-84bd-1c2c69cb86ef" >
+		<try doc:name="Try" doc:id="919f1392-6563-46f2-a2ce-09e08e12a99f" transactionalAction="BEGIN_OR_JOIN">
+			<db:insert doc:name="Insert" doc:id="e397f7ea-b777-4395-813e-0b6b92404948" config-ref="Database_Aiven_Config" target="dbtest" transactionalAction="ALWAYS_JOIN">
+			<db:sql><![CDATA[INSERT IGNORE INTO Customers (CustomerId, CustomerName,Email, Phone)
+VALUES (:customerId,:customerName,:customerEmail,:customerPhone);]]></db:sql>
+			<db:input-parameters><![CDATA[#[{'customerId' : payload.customerId , 'customerName': payload.customerName, 'customerEmail' : payload.customerEmail, 'customerPhone': payload.customerPhone}]]]></db:input-parameters>
+		</db:insert>
+			<db:insert doc:name="Insert" doc:id="34f4ef26-5528-4785-8641-3ee4d7c1b3c0" target="shipping_addresses" config-ref="Database_Aiven_Config" transactionalAction="ALWAYS_JOIN">
+			<db:sql><![CDATA[INSERT INTO ShippingAddresses (Street, City, State, ZipCode, Country)
+VALUES (:street, :city, :state, :zipCode, :country);]]></db:sql>
+			<db:input-parameters><![CDATA[#[{'street' : payload.shippingAddress.street , 
+ "city": payload.shippingAddress.city,
+ "state": payload.shippingAddress.state,
+ "zipCode": payload.shippingAddress.zipCode,
+ "country": payload.shippingAddress.country
+}]]]></db:input-parameters>
+		</db:insert>
+			<db:select doc:name="Select" doc:id="733c2d64-7f28-40bd-974d-7b8339b158b8" config-ref="Database_Aiven_Config" target="addressId" transactionalAction="ALWAYS_JOIN">
+			<db:sql><![CDATA[SELECT AddressId  FROM ShippingAddresses sa ORDER BY AddressId DESC LIMIT 1;]]></db:sql>
+		</db:select>
+			<db:insert doc:name="Insert" doc:id="f8ee0e57-782d-486c-844a-bdb6efed33f6" config-ref="Database_Aiven_Config" target="ordersInsert" transactionalAction="ALWAYS_JOIN">
+			<db:sql><![CDATA[INSERT INTO Orders (OrderId, CustomerId, OrderDate, TotalAmount, PaymentStatus, OrderStatus, ShippingAddressId)
+                VALUES (:orderId, :customerId, :orderDate, :totalAmount, :paymentStatus, :orderStatus, :shippingAddressId)]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+  "orderId": payload.orderId,
+  "customerId": payload.customerId,
+  "orderDate": payload.orderDate,
+  "totalAmount": payload.totalAmount,
+  "paymentStatus": payload.paymentStatus,
+  "orderStatus": payload.orderStatus,
+  "shippingAddressId": vars.addressId.addressId[0] 
+}]]]></db:input-parameters>
+		</db:insert>
+			<foreach doc:name="For Each" doc:id="9663e6d0-241e-4e63-b3c3-7fbf396b792d" collection="#[payload.items]">
+			<db:insert doc:name="Insert" doc:id="620660d5-5b14-4d9a-bcb5-1097de6cb72d" config-ref="Database_Aiven_Config" transactionalAction="ALWAYS_JOIN">
+			<db:sql><![CDATA[INSERT INTO OrderItems (OrderId, ProductId, ProductName, Quantity, Price)
+VALUES (:orderId, :productId, :productName, :quantity, :price)]]></db:sql>
+				<db:input-parameters><![CDATA[#[{
+"orderId": vars.orderId,
+"productId": payload.productId,
+"productName":payload.productName ,
+"quantity": payload.quantity,
+"price": payload.price
+}]]]></db:input-parameters>
+		</db:insert>
+		</foreach>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="fd211041-aea4-4869-8937-a001fb016647" type="DB:BAD_SQL_SYNTAX, DB:CONNECTIVITY, DB:QUERY_EXECUTION, DB:RETRY_EXHAUSTED">
+				<set-variable value="500" doc:name="Set Variable" doc:id="814fc6d8-4bb0-4316-99d0-603acc6754da" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="27ea08d9-dd75-4b4c-8e73-ae8f3ec30db2">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "status": "Database error",
+  "message": error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="567482d4-b10d-4a9f-a3cb-034406ce953a" message='"Error Inserting Data into Database"' />
+			</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Logger" doc:id="652046e8-3476-4987-b4e6-2c8bff406cc7" message="#[{'message': 'Order inserted successfully', 'orderId': vars.orderId}]" />
+	</flow>
+</mule>

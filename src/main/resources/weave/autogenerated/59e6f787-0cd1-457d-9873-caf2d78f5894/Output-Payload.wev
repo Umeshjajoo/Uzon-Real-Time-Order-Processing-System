@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_59e6f787_0cd1_457d_9873_caf2d78f5894_Output_Payload = Array<{|  productId?: String,   productName?: String,   quantity?: Number,   orderId?: String|}>
+

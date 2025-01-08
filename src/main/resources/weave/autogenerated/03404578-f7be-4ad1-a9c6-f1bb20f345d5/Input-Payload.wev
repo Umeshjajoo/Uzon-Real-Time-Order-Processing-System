@@ -1,0 +1,21 @@
+%dw 2.0
+
+type auto_03404578_f7be_4ad1_a9c6_f1bb20f345d5_Input_Payload = {
+  totalAmount: Number, 
+  orderId: String, 
+  customerId: String, 
+  orderStatus: String, 
+  shippingAddress: {
+    zipCode: String, 
+    country: String, 
+    city: String, 
+    street: String, 
+    state: String, 
+    _?: Any
+  }, 
+  orderDate: String, 
+  items: Array<{    quantity: Number,     productId: String,     price: Number,     productName: String,     _?: Any  }>, 
+  paymentStatus: String, 
+  _?: Any
+}
+

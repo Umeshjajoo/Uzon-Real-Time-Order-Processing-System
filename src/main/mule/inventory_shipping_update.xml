@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:kafka="http://www.mulesoft.org/schema/mule/kafka"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/kafka/current/mule-kafka.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	
+	<flow name="inventory_updateFlow" doc:id="9b6b81c2-fedf-4f74-b5ac-fa61a5ef7858" >
+		<kafka:message-listener doc:name="Message listener" doc:id="cb8051ee-f0bc-47df-8811-c621fa74a17a" config-ref="Apache_Kafka_inventory_Consumer_configuration1"/>
+		<ee:transform doc:name="Transform Message" doc:id="7d11eae3-ec19-4687-8153-3dc9565f8103" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload, "application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:update doc:name="Update" doc:id="3ff780e4-7f63-4f1f-8132-54e5d9eb6b98" config-ref="Database_Aiven_Config" target="InventoryUpdated">
+			<db:sql ><![CDATA[UPDATE ProductInventory SET QuantityInStock = :QuantityInStock WHERE ProductID = :ProductID;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{QuantityInStock : payload.remainingStock,
+	ProductID : payload.productId
+}]]]></db:input-parameters>
+		</db:update>
+		<ee:transform doc:name="Transform Message" doc:id="74b64e0f-c38e-4eb3-afec-37e6fae8d5fd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import wait from dw::Runtime
+
+output application/json
+---
+{
+  "orderId": payload.orderId,
+  "currentStatus": "Packed",
+  "timeStamp": now() as DateTime  + |PT30S|
+} 
+  
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<kafka:publish doc:name="Publish" doc:id="602af248-bd25-47cf-8721-4d538373e7d6" config-ref="Apache_Kafka_Aiven_Producer_configuration" topic="order-status" target="publishPayload"/>
+		<logger level="INFO" doc:name="Logger" doc:id="5f02fa2e-2201-42d8-bd00-07cb61a82bbd" message="Inventory Stock Updated" />
+		<error-handler ref="Global_Error_Handler" />
+	</flow>
+	<flow name="shipping_updateFlow" doc:id="6f96e6f7-d036-42e7-bcff-83bdd09522cc" >
+		<kafka:message-listener doc:name="Message listener" doc:id="e31e7b2d-fa37-4a50-b96e-5a4608c54c9e" config-ref="Apache_Kafka_shipping_Consumer_configuration1"/>
+		<ee:transform doc:name="Transform Message" doc:id="e9f7e2cd-610a-4b3a-b86d-bf9bf556d530" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload, "application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="2cdb214c-acc2-4e9d-8cfb-b51382e5d4ee" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import wait from dw::Runtime
+
+output application/json
+---
+{
+  "orderId": payload.orderId,
+  "currentStatus": "Shipped",
+  "timeStamp": now() as DateTime + |PT1M|
+}
+  
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<kafka:publish doc:name="Publish" doc:id="c1a428c4-0b19-4d61-9c92-655e2b5802c5" config-ref="Apache_Kafka_Aiven_Producer_configuration" topic="order-status" target="publishPayload"/>
+		<logger level="INFO" doc:name="Logger" doc:id="dd18e4ea-96ca-46bf-b8ce-1ba0383c70fc" message="Shipping Updated"/>
+		<error-handler ref="Global_Error_Handler" />
+	</flow>
+</mule>

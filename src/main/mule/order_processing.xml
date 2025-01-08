@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:kafka="http://www.mulesoft.org/schema/mule/kafka"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/kafka/current/mule-kafka.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<flow name="order_processingFlow" doc:id="483b57bf-54e3-4840-a26f-6562dace01e9" >
+		<kafka:message-listener doc:name="Message listener" doc:id="8db57f7c-e86b-4da6-a4c2-d3eca9732318" config-ref="Apache_Kafka_Consumer_Order_validated_configuration1">
+			<redelivery-policy maxRedeliveryCount="3" />
+		</kafka:message-listener>
+		<ee:transform doc:name="Transform Message" doc:id="ce470ef5-d0d9-4a86-bddf-c4fcbaf841c5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload, "application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="73490d76-b88a-4f69-9291-e1b516f12e33" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "orderId": payload.orderId,
+  "currentStatus": "Order Placed",
+  "timeStamp": now() as DateTime
+}
+  
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<kafka:publish doc:name="Publish" doc:id="1914100f-7660-48ef-9e5b-44342ce93749" config-ref="Apache_Kafka_Aiven_Producer_configuration" topic="order-status" target="publishPayload"/>
+		<flow-ref doc:name="Flow Reference" doc:id="d2863695-64e1-4ea9-b127-68df82c0910f" name="Inventory_update_Sub_Flow" target="Inventory"/>
+		<flow-ref doc:name="Flow Reference" doc:id="b3806afe-9726-48da-bbe8-81d5ee7d726b" name="Shipping_update_sub_Flow" target="Shipping"/>
+		<error-handler ref="Global_Error_Handler" />
+	</flow>
+	<sub-flow name="Inventory_update_Sub_Flow" doc:id="ae32cea4-866a-4345-bfef-dfc7e9c8460c" >
+		<db:select doc:name="Select" doc:id="4371c37d-8f62-4b72-9ea8-89f8a749afe6" config-ref="Database_Aiven_Config">
+			<db:sql><![CDATA[SELECT ProductId , ProductName ,Quantity, OrderId FROM OrderItems oi WHERE OrderId = :orderId;
+]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"orderId": payload.orderId}]]]></db:input-parameters>
+		</db:select>
+		<foreach doc:name="For Each" doc:id="975b1b58-7765-4029-b634-3379857bb700">
+			<db:select doc:name="Select" doc:id="62a64158-fa87-4d12-9eed-2f205b9f1a86" config-ref="Database_Aiven_Config" target="availableStocks">
+				<db:sql ><![CDATA[SELECT QuantityInStock FROM ProductInventory pi WHERE pi.ProductID= :productId]]></db:sql>
+				<db:input-parameters ><![CDATA[#[{"productId": payload.productId}]]]></db:input-parameters>
+			</db:select>
+			<ee:transform doc:name="Transform Message" doc:id="0c2ab804-abc8-4090-8f56-932161c7671d">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "productId": payload.productId,
+  "productName": payload.productName,
+  "quantityDeducted": payload.quantity,
+  "updateTimestamp": now() as DateTime,
+  "remainingStock": (vars.availableStocks.QuantityInStock[0] - payload.quantity),
+  "orderId": payload.orderId
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<kafka:publish doc:name="Publish" doc:id="a2307f3b-90a4-43d0-a9c3-c6bb0e53a69d" config-ref="Apache_Kafka_Aiven_Producer_configuration" topic="inventory-updates" key="#[payload.orderId]"/>
+		</foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="dc5f156e-0ae0-439f-956e-29af9a6f92ff" message="Inventory Queue Updated"/>
+	</sub-flow>
+	<sub-flow name="Shipping_update_sub_Flow" doc:id="59e6f787-0cd1-457d-9873-caf2d78f5894" >
+		<db:select doc:name="Select" doc:id="2dd3c4d4-3c27-4364-a8e1-2306c46d504d" config-ref="Database_Aiven_Config">
+			<db:sql ><![CDATA[SELECT 
+    o.OrderId, 
+    o.OrderDate, 
+    o.TotalAmount, 
+    o.PaymentStatus, 
+    o.OrderStatus,
+    sa.Street, 
+    sa.City, 
+    sa.State, 
+    sa.ZipCode, 
+    sa.Country
+FROM Orders o
+JOIN ShippingAddresses sa ON o.ShippingAddressId = sa.AddressId
+WHERE o.OrderId = :orderId;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"orderId": payload.orderId}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="e3593501-2141-4a36-b9c7-d8676c005bae" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "orderId": payload.orderId[0],
+  "shippingProvider": "FedEx",
+  "trackingNumber": "FEDEX123456789",
+  "expectedDeliveryDate": "2024-01-17",
+  "shippingAddress": {
+    "street": payload.street,
+    "city": payload.city,
+    "state": payload.state,
+    "zipCode": payload.zipCode,
+    "country": payload.country,
+  },
+  "shippingStatus": "In Transit",
+  "lastUpdated": "2024-01-15T14:00:00Z"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<kafka:publish doc:name="Publish" doc:id="17aa0549-e170-47ee-bbe9-1dcf8e323712" config-ref="Apache_Kafka_Aiven_Producer_configuration" topic="shipping-updates"/>
+		<logger level="INFO" doc:name="Logger" doc:id="30b1bc32-fe22-4b59-8c1b-bb2a6dbdf4a0" message=" Shipping Queue Updated"/>
+	</sub-flow>
+</mule>

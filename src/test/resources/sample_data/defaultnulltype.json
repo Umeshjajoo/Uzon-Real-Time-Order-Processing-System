@@ -1,0 +1,32 @@
+[
+  {
+    "productId": "9",
+    "isValid": true,
+    "inventoryCheck": true,
+    "payment": true
+  },
+  {
+    "productId": "2",
+    "isValid": true,
+    "inventoryCheck": true,
+    "payment": true
+  },
+  {
+    "productId": "6",
+    "isValid": true,
+    "inventoryCheck": true,
+    "payment": true
+  },
+  {
+    "productId": "8",
+    "isValid": true,
+    "inventoryCheck": true,
+    "payment": true
+  },
+  {
+    "productId": "82",
+    "isValid": true,
+    "inventoryCheck": true,
+    "payment": true
+  }
+]

@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_2eacf15d_c6e8_4836_91ae_5c9f67a94d86_Input_Variables_ProductIDs = Any
+
